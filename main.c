@@ -360,7 +360,6 @@ int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* basea
 				*filename1=i;
 			} else {
 				*filenames = (int*) realloc(*filenames, lene*sizeof(i));
-//				fprintf(stderr, "lene:%i - alloc:%lu - val:%i\n", lene, ((lene+1)*sizeof(i)), i);
 				(*filenames)[lene-1]=i;
 //				fprintf(stderr, "i=\n");
 				lene++;
@@ -369,6 +368,7 @@ int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* basea
 		}
 	}
 	if (filenamecnt > 1) *diffmode=1;
+	lene--;
 	return retval;
 }
 void openBufErr(tBuffer *b, int n, char *file) {
@@ -562,24 +562,26 @@ int main(int argc,char** argv)
 			ch=0;
 			while (ch!=KEYF10)
 			{
-				if (ch==KEYF11 || ch==KEYF12) {
+				if (diffmode == 1) {
+					if (ch==KEYF11 || ch==KEYF12) {
 //					fprintf(stderr, "before: %u - %u\n", lene, cpos);
-					if (ch==KEYF12){
-						cpos++;
-						//ignoring edge case of 2147483647 files
-						if (cpos > lene-1)
-							cpos = 0;
-					} else {
-						cpos--;
-						if (cpos == UINT32_MAX)
-							cpos = lene-1;
-					}
+						if (ch==KEYF12){
+							cpos++;
+							//ignoring edge case of 2147483647 files
+							if (cpos > lene-1)
+								cpos = 0;
+						} else {
+							cpos--;
+							if (cpos == UINT32_MAX)
+								cpos = lene-1;
+						}
 //					fprintf(stderr, "after %u - %u\n", lene, cpos);
-//					for (int i = 0; i < lene+1; i++){
+//					for (int i = 0; i < lene; i++){
 //						fprintf(stderr, "%i: %i - %s\n", i, efilenames[i], argv[efilenames[i]]);
 //					}
-					char *fn = argv[efilenames[cpos]];
-					openBufErr(buf2, 2, fn);
+						char *fn = argv[efilenames[cpos]];
+						openBufErr(buf2, 2, fn);
+					}
 				}
 				printmainmenu(output,diffmode);
 				if (diffmode)
