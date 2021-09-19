@@ -1,7 +1,8 @@
 CC=		gcc
 LDFLAGS=	-L/usr/lib	-L/usr/local/lib  	-L/usr/lib/ncurses	-L/usr/local/lib/ncurses
 CPPFLAGS=	-I/usr/include	-I/usr/local/include	-I/usr/include/ncurses	-I/usr/local/include/ncurses
-CFLAGS=		-O3 -Wall #-std=c99 
+CFLAGS=		-O3 -Wall #-std=c99
+CDEBUGFLAGS=	-O0 -Wall -g
 #CFLAGS+= -ffunction-sections -fdata-sections
 #LDFLAGS+= --gc-sections 
 LIBS=		-lncurses
@@ -25,6 +26,11 @@ all:	dhex
 
 dhex:	$(OFILES)
 	$(CC) $(LDFLAGS) -o $@ $(OFILES) $(LIBS)
+
+debug: .dflags dhex
+
+.dflags:
+	$(eval CFLAGS = $(CDEBUGFLAGS))
 
 install:all
 	strip dhex
