@@ -17,6 +17,8 @@
 #define KEYF8           0x0107
 #define KEYF9           0x0108
 #define KEYF10          0x0109
+#define KEYF11          0x1011
+#define KEYF12          0x1012
 #define KEYESC          0x010a
 #define KEYBACKSPACE    0x010b
 #define KEYDEL          0x010c
@@ -31,7 +33,7 @@
 #define KEYHOME         0x0115
 #define KEYEND          0x0116
 
-#define NUM_SPECIALKEYS	0x17
+#define NUM_SPECIALKEYS	0x19
 
 
 void initkeytab(tOutput* output);

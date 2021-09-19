@@ -69,7 +69,7 @@ void helpscreen(char* argv0,int exitval)
 	fprintf(stderr," -r, -R [read searchlog]      read the search positions from this searchlog\n");
 	fprintf(stderr," -w, -W [write searchlog]     write the location of the occurances to this log\n");
 	fprintf(stderr,"\n");
-	fprintf(stderr,"%s [Parameters] [Filename1] [Filename2]: Diff mode\n",argv0);
+	fprintf(stderr,"%s [Parameters] [Filename1] [Filename2]... : Diff mode\n",argv0);
 	fprintf(stderr," -cd, -CD [x]                      correlate with the minimum difference\n");
 	fprintf(stderr," -cb, -CB, -cl, -CL                correlate with the best/longest match\n");
 	fprintf(stderr," -a1b, -A1B  [x] -a2b, -A2B  [y]   base addresses to [x] and [y] (binary)\n");
@@ -130,13 +130,18 @@ int parsecursorpos(tInt64* cursorpos1,tInt64* cursorpos2,char* lastopt,char* arg
 	return RETOK;	
 	
 }
-int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* baseaddr2,tInt64* cursorpos1,tInt64* cursorpos2,tBool* diffmode,int* filename1,int* filename2,tBool* keyboardsetupreq,char* markerfilename,char* configfile,tSearch* search1,tBool* gosearch1,tSearch* search2,tBool* gosearch2,tCorrelation* correlation,tBool* gocorr,tBool* bhexcalc)
+//length of array of extra filenames
+unsigned int lene=1;
+int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* baseaddr2,tInt64* cursorpos1,tInt64* cursorpos2,tBool* diffmode,int* filename1,int** filenames,tBool* keyboardsetupreq,char* markerfilename,char* configfile,tSearch* search1,tBool* gosearch1,tSearch* search2,tBool* gosearch2,tCorrelation* correlation,tBool* gocorr,tBool* bhexcalc)
 {
 	int filenamecnt=0;
 	int i;
 	int retval=RETOK;
 	char lastopt[8];
 	tBool moreopts=1;
+
+	free(*filenames);
+	*filenames = NULL;
 
 	*bhexcalc=0;
 	*gosearch1=0;
@@ -350,20 +355,29 @@ int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* basea
 		}
 		else // no parameters, must be a filename
 		{
-			if (filenamecnt==0)	
+			if (filenamecnt==0)
 			{
 				*filename1=i;
-			}
-			if (filenamecnt==1)	
-			{
-				*filename2=i;
-				*diffmode=1;
+			} else {
+				*filenames = (int*) realloc(*filenames, lene*sizeof(i));
+//				fprintf(stderr, "lene:%i - alloc:%lu - val:%i\n", lene, ((lene+1)*sizeof(i)), i);
+				(*filenames)[lene-1]=i;
+//				fprintf(stderr, "i=\n");
+				lene++;
 			}
 			filenamecnt++;
-			if (filenamecnt>2) retval=RETNOK;
 		}
 	}
+	if (filenamecnt > 1) *diffmode=1;
 	return retval;
+}
+void openBufErr(tBuffer *b, int n, char *file) {
+//	fprintf(stderr, "trying to open %s", file);
+	if (openbuf(b,n,file)!=RETOK)
+	{
+		fprintf(stderr,"error opening multi inputfile %s\n",file);
+		exit(1);
+	}
 }
 int main(int argc,char** argv)
 {
@@ -372,6 +386,7 @@ int main(int argc,char** argv)
 	thHexCalc*	hHexCalc=NULL;
 	tBuffer*	buf1=NULL;
 	tBuffer*	buf2=NULL;
+
 	tOutput*	output=NULL;
 	tInt64 baseaddr1=0;
 	tInt64 cursorpos1;
@@ -396,11 +411,16 @@ int main(int argc,char** argv)
 	tBool	keyboardsetupreq;
 	tBool	gocorr=0;
 	tBool	bhexcalc=0;
+
+
 	int	retval;
 	
 	int ch;
 	int filename1=-1;
-	int filename2=-1;
+
+	int *efilenames;
+	unsigned int cpos=0;
+
 	char* homedir;
 	char configfile[512];
 
@@ -418,7 +438,7 @@ int main(int argc,char** argv)
 	clearsearch(&search1);
 	clearsearch(&search2);
 	clear_correlation(&correlation);
-	if (parsecommandlineoptions(argc,argv,&baseaddr1,&baseaddr2,&cursorpos1,&cursorpos2,&diffmode,&filename1,&filename2,&keyboardsetupreq,markerfilename,configfile,&search1,&gosearch1,&search2,&gosearch2,&correlation,&gocorr,&bhexcalc)!=RETOK)
+	if (parsecommandlineoptions(argc,argv,&baseaddr1,&baseaddr2,&cursorpos1,&cursorpos2,&diffmode,&filename1,&efilenames,&keyboardsetupreq,markerfilename,configfile,&search1,&gosearch1,&search2,&gosearch2,&correlation,&gocorr,&bhexcalc)!=RETOK)
 	{
 		if (output)
 		{
@@ -456,7 +476,7 @@ int main(int argc,char** argv)
 		
 	}
 	
-	if ((filename1==-1 || (filename2==-1 && diffmode)) && !bhexcalc) helpscreen(argv[0],0);
+	if ((filename1==-1 || (lene < 1 && diffmode)) && !bhexcalc) helpscreen(argv[0], 0);
 	retval=readconfigfile(output,configfile);
 	if (retval==1)		// config file did not exists. creating one
 	{
@@ -512,9 +532,9 @@ int main(int argc,char** argv)
 			fprintf(stderr,"error opening inputfile %s\n",argv[filename1]);
 			exit(1);
 		}
-		if (diffmode) if (openbuf(buf2,2,argv[filename2])!=RETOK)
+		if (diffmode) if (openbuf(buf2,2,argv[efilenames[0]])!=RETOK)
 		{
-			fprintf(stderr,"error opening second inputfile %s\n",argv[filename2]);
+			fprintf(stderr,"error opening second inputfile %s\n",argv[efilenames[0]]);
 			exit(1);
 		}
 		if (gosearch1) searchfor(&search1,buf1,&cursorpos1,1);
@@ -541,13 +561,33 @@ int main(int argc,char** argv)
 			firstpos2=cursorpos2;
 			ch=0;
 			while (ch!=KEYF10)
-			{	
+			{
+				if (ch==KEYF11 || ch==KEYF12) {
+//					fprintf(stderr, "before: %u - %u\n", lene, cpos);
+					if (ch==KEYF12){
+						cpos++;
+						//ignoring edge case of 2147483647 files
+						if (cpos > lene-1)
+							cpos = 0;
+					} else {
+						cpos--;
+						if (cpos == UINT32_MAX)
+							cpos = lene-1;
+					}
+//					fprintf(stderr, "after %u - %u\n", lene, cpos);
+//					for (int i = 0; i < lene+1; i++){
+//						fprintf(stderr, "%i: %i - %s\n", i, efilenames[i], argv[efilenames[i]]);
+//					}
+					char *fn = argv[efilenames[cpos]];
+					openBufErr(buf2, 2, fn);
+				}
 				printmainmenu(output,diffmode);
 				if (diffmode)
 					printbufferdiff(output,buf1,buf2,cursorpos1,cursorpos2);
 				else		
 					printbuffersingle(output,buf1,cursorpos1,firstpos1,windowfield);
 				ch=getkey((tKeyTab*)output->pKeyTab,1);
+
 
 #define	MOVEMENTDEFINE(KEY,VIKEY,mvchar,mvline,mvpage)	\
 				if (ch==KEY || (VIKEY && ch==VIKEY && windowfield==0))	\
@@ -614,7 +654,6 @@ int main(int argc,char** argv)
 
 						if (dmin==0)
 						{
-
 							cursorpos2+=dmax;
 							cursorpos1+=dmax;
 						} else {
