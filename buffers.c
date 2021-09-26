@@ -92,11 +92,14 @@ tInt32	getbufferidx(tBuffer* hBuf,tInt64 pos)
 tInt8	savechanges(tBuffer* hBuf)
 {
 	int i;
-	fclose(hBuf->file);
-	if (hBuf->changesnum)
-	{
-		hBuf->file=fopen(hBuf->filename,"r+b");
-		if (hBuf->file==NULL) return RETNOK;
+	FILE* tFile;
+
+	if (hBuf->changesnum){
+		tFile = fopen(hBuf->filename,"r+b");
+		if (tFile != NULL) {
+			fclose(hBuf->file);
+			hBuf->file = tFile;
+		} else return RETNOK;
 		for (i=0;i<hBuf->changesnum;i++)
 		{
 			setfilepos(hBuf->file,hBuf->changes[i].pos);
