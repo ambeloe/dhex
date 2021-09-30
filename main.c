@@ -140,7 +140,6 @@ int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* basea
 	char lastopt[8];
 	tBool moreopts=1;
 
-	free(*filenames);
 	*filenames = NULL;
 
 	*bhexcalc=0;
@@ -381,8 +380,6 @@ void openBufErr(tBuffer *b, int n, char *file) {
 }
 int main(int argc,char** argv)
 {
-//	tBuffer buf1;
-//	tBuffer buf2;
 	thHexCalc*	hHexCalc=NULL;
 	tBuffer*	buf1=NULL;
 	tBuffer*	buf2=NULL;
