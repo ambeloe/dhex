@@ -7,7 +7,7 @@
 #include "machine_type.h"
 #include "datatypes.h"
 
-void initcolors();
+void initcolors(tOutput* output);
 void colorpair(tOutput* output,uicolors uicol,short fg,short bg,int attr);
 void pairsinit(tOutput* output);
 void setcolor(tOutput* output,uicolors col);

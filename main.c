@@ -70,6 +70,7 @@ void helpscreen(char* argv0,int exitval)
 	fprintf(stderr," -w, -W [write searchlog]     write the location of the occurances to this log\n");
 	fprintf(stderr,"\n");
 	fprintf(stderr,"%s [Parameters] [Filename1] [Filename2]... : Diff mode\n",argv0);
+    fprintf(stderr," -l, -L                            don't open multiple files in diff mode(just switch between singular files)\n");
 	fprintf(stderr," -cd, -CD [x]                      correlate with the minimum difference\n");
 	fprintf(stderr," -cb, -CB, -cl, -CL                correlate with the best/longest match\n");
 	fprintf(stderr," -a1b, -A1B  [x] -a2b, -A2B  [y]   base addresses to [x] and [y] (binary)\n");
@@ -132,7 +133,7 @@ int parsecursorpos(tInt64* cursorpos1,tInt64* cursorpos2,char* lastopt,char* arg
 }
 //length of array of extra filenames
 unsigned int lene=1;
-int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* baseaddr2,tInt64* cursorpos1,tInt64* cursorpos2,tBool* diffmode,int* filename1,int** filenames,tBool* keyboardsetupreq,char* markerfilename,char* configfile,tSearch* search1,tBool* gosearch1,tSearch* search2,tBool* gosearch2,tCorrelation* correlation,tBool* gocorr,tBool* bhexcalc)
+int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* baseaddr2,tInt64* cursorpos1,tInt64* cursorpos2,tBool* diffmode,int* filename1,int** filenames,tBool* keyboardsetupreq,char* markerfilename,char* configfile,tSearch* search1,tBool* gosearch1,tSearch* search2,tBool* gosearch2,tCorrelation* correlation,tBool* gocorr,tBool* bhexcalc, tBool* listMode)
 {
 	int filenamecnt=0;
 	int i;
@@ -186,6 +187,11 @@ int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* basea
 						*keyboardsetupreq=1;
 						lastopt[0]=0;
 						break;
+                case 'l':
+                case 'L':
+                        *listMode = 1;
+                        lastopt[0]=0;
+                        break;
 				case 'x':
 				case 'X':
 						*bhexcalc=1;
@@ -354,19 +360,23 @@ int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* basea
 		}
 		else // no parameters, must be a filename
 		{
-			if (filenamecnt==0)
-			{
+			if (filenamecnt==0) {
 				*filename1=i;
-			} else {
-				*filenames = (int*) realloc(*filenames, lene*sizeof(i));
-				(*filenames)[lene-1]=i;
-//				fprintf(stderr, "i=\n");
-				lene++;
 			}
+            *filenames = (int*) realloc(*filenames, lene*sizeof(i));
+            (*filenames)[lene-1]=i;
+            lene++;
 			filenamecnt++;
 		}
 	}
-	if (filenamecnt > 1) *diffmode=1;
+	if (filenamecnt > 1) {
+        *diffmode = 1;
+//        if (*listMode) {
+//            *diffmode=0;
+//        } else {
+//            *diffmode=1;
+//        }
+    }
 	lene--;
 	return retval;
 }
@@ -415,8 +425,10 @@ int main(int argc,char** argv)
 	int ch;
 	int filename1=-1;
 
-	int *efilenames;
+	int* efilenames;
 	unsigned int cpos=0;
+
+    tBool listmode = 0;
 
 	char* homedir;
 	char configfile[512];
@@ -435,7 +447,7 @@ int main(int argc,char** argv)
 	clearsearch(&search1);
 	clearsearch(&search2);
 	clear_correlation(&correlation);
-	if (parsecommandlineoptions(argc,argv,&baseaddr1,&baseaddr2,&cursorpos1,&cursorpos2,&diffmode,&filename1,&efilenames,&keyboardsetupreq,markerfilename,configfile,&search1,&gosearch1,&search2,&gosearch2,&correlation,&gocorr,&bhexcalc)!=RETOK)
+	if (parsecommandlineoptions(argc,argv,&baseaddr1,&baseaddr2,&cursorpos1,&cursorpos2,&diffmode,&filename1,&efilenames,&keyboardsetupreq,markerfilename,configfile,&search1,&gosearch1,&search2,&gosearch2,&correlation,&gocorr,&bhexcalc, &listmode)!=RETOK)
 	{
 		if (output)
 		{
@@ -475,12 +487,12 @@ int main(int argc,char** argv)
 	
 	if ((filename1==-1 || (lene < 1 && diffmode)) && !bhexcalc) helpscreen(argv[0], 0);
 	retval=readconfigfile(output,configfile);
-	if (retval==1)		// config file did not exists. creating one
+	if (retval==1)		// config file did not exist. creating one
 	{
 		tFptr f=fopen(configfile,"w");
 		if (!f)
 		{
-			welcomescreen(argv[0]);
+//			welcomescreen(argv[0]);
 			fprintf(stderr,"config file %s did not exists, and i couldn't create it\n",configfile);
 			exit(1);
 		}
@@ -536,7 +548,7 @@ int main(int argc,char** argv)
 		}
 		if (gosearch1) searchfor(&search1,buf1,&cursorpos1,1);
 		if (gosearch2 && diffmode) searchfor(&search2,buf2,&cursorpos2,1);
-		if (gocorr && diffmode)	
+		if (gocorr && diffmode)
 		{
 			fprintf(stderr,"correlating...\n");
 			find_correlation(NULL,&correlation,buf1,buf2,&cursorpos1,&cursorpos2);
@@ -559,29 +571,33 @@ int main(int argc,char** argv)
 			ch=0;
 			while (ch!=KEYF10)
 			{
-				if (diffmode == 1) {
-					if (ch==KEYF11 || ch==KEYF12) {
+                if (ch==KEYF11 || ch==KEYF12) {
 //					fprintf(stderr, "before: %u - %u\n", lene, cpos);
-						if (ch==KEYF12){
-							cpos++;
-							//ignoring edge case of 2147483647 files
-							if (cpos > lene-1)
-								cpos = 0;
-						} else {
-							cpos--;
-							if (cpos == UINT32_MAX)
-								cpos = lene-1;
-						}
+                    if (ch==KEYF12){
+                        cpos++;
+                        //ignoring edge case of 2147483647 files
+                        if (cpos > lene-1)
+                            cpos = 0;
+                    } else {
+                        cpos--;
+                        if (cpos == UINT32_MAX)
+                            cpos = lene-1;
+                    }
 //					fprintf(stderr, "after %u - %u\n", lene, cpos);
 //					for (int i = 0; i < lene; i++){
 //						fprintf(stderr, "%i: %i - %s\n", i, efilenames[i], argv[efilenames[i]]);
 //					}
-						char *fn = argv[efilenames[cpos]];
-						openBufErr(buf2, 2, fn);
-					}
-				}
+                    char *fn = argv[efilenames[cpos]];
+                    if (diffmode) {
+                        if (listmode){
+                            openBufErr(buf1, 1, fn);
+                        } else {
+                            openBufErr(buf2, 2, fn);
+                        }
+                    }
+                }
 				printmainmenu(output,diffmode);
-				if (diffmode)
+				if (diffmode && !listmode)
 					printbufferdiff(output,buf1,buf2,cursorpos1,cursorpos2);
 				else		
 					printbuffersingle(output,buf1,cursorpos1,firstpos1,windowfield);
@@ -798,7 +814,7 @@ int main(int argc,char** argv)
 		if (buf2) free(buf2);
 		if (hHexCalc)	free(hHexCalc);
 		if (markers)	free(markers);
-		welcomescreen(argv[0]);
+//		welcomescreen(argv[0]);
 	} else {
 		if (gosearch1) fprintf(stderr,"%lli occurances found in %s\n",search1.occurancesfound,buf1->filename);
 		if (gosearch2) fprintf(stderr,"%lli occurances found in %s\n",search2.occurancesfound,buf2->filename);
