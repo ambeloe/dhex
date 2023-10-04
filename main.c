@@ -370,12 +370,12 @@ int parsecommandlineoptions(int argc,char** argv,tInt64* baseaddr1,tInt64* basea
 		}
 	}
 	if (filenamecnt > 1) {
-        *diffmode = 1;
-//        if (*listMode) {
-//            *diffmode=0;
-//        } else {
-//            *diffmode=1;
-//        }
+//        *diffmode = 1;
+        if (*listMode) {
+            *diffmode=0;
+        } else {
+            *diffmode=1;
+        }
     }
 	lene--;
 	return retval;
@@ -588,12 +588,11 @@ int main(int argc,char** argv)
 //						fprintf(stderr, "%i: %i - %s\n", i, efilenames[i], argv[efilenames[i]]);
 //					}
                     char *fn = argv[efilenames[cpos]];
-                    if (diffmode) {
-                        if (listmode){
-                            openBufErr(buf1, 1, fn);
-                        } else {
-                            openBufErr(buf2, 2, fn);
-                        }
+//                    printf("%s %d\n", fn, listmode);
+                    if (listmode){
+                        openBufErr(buf1, 1, fn);
+                    } else if (diffmode) {
+                        openBufErr(buf2, 2, fn);
                     }
                 }
 				printmainmenu(output,diffmode);
@@ -661,7 +660,7 @@ int main(int argc,char** argv)
 				}
 				if (ch==KEYEND || (ch=='$' && windowfield==0))
 				{
-					if (diffmode)
+					if (diffmode && !listmode)
 					{
 						tInt64	dmin,dmax;
 						dmin=MIN(buf1->bufsize-cursorpos1,buf2->bufsize-cursorpos2);
